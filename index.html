@@ -1,0 +1,757 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex, nofollow">
+<title>Excel naar NFC-links</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Courier+Prime:wght@400;700&family=Public+Sans:wght@400;600;800&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+<style>
+  :root {
+    --desk: #DCE3E7; --ink: #1D2733; --muted: #52617A; --stock: #FFFEFA;
+    --red: #D9534F; --rule: #BCD0E6; --accent: #1F4FA8; --ok: #2E7D4F; --line: #B4C0CA;
+    --sans: "Public Sans", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    --type: "Courier Prime", "Courier New", Courier, monospace;
+  }
+  * { box-sizing: border-box; }
+  [hidden] { display: none !important; }
+  body { margin: 0; background: var(--desk); color: var(--ink); font: 16px/1.55 var(--sans); }
+  main { max-width: 900px; margin: 0 auto; padding: 64px 24px 112px; }
+
+  h1 { font-size: clamp(2.5rem, 7vw, 4.4rem); line-height: 1; font-weight: 800; letter-spacing: -0.025em; margin: 0 0 20px; }
+  .intro { max-width: 58ch; margin: 0; color: var(--muted); font-size: 1.08rem; }
+  section { margin-top: 64px; }
+  h2 { font-size: 1.4rem; line-height: 1.2; margin: 0 0 8px; }
+  .hint { color: var(--muted); margin: 0 0 22px; max-width: 64ch; }
+  .notice { background: var(--stock); border-left: 3px solid var(--red); padding: 12px 16px; margin: 0 0 24px; max-width: 64ch; }
+  ol.steps { margin: 0 0 28px; padding-left: 1.3em; max-width: 64ch; }
+  ol.steps li { margin-bottom: 6px; padding-left: 4px; }
+  code { font: .92em var(--type); background: var(--stock); padding: 1px 5px; border-radius: 3px; overflow-wrap: anywhere; }
+
+  .card {
+    display: block; position: relative; background: var(--stock);
+    padding: 0 18px 10px; border-radius: 3px;
+    box-shadow: 0 1px 1px rgba(29,39,51,.12), 0 12px 22px -14px rgba(29,39,51,.5);
+  }
+  .card-name {
+    display: block; height: 46px; margin: 0 -18px; padding: 17px 18px 0;
+    border-bottom: 2px solid var(--red);
+    font: 700 1.05rem/1.4 var(--type);
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .card-body {
+    display: block; margin: 0 -18px; padding: 0 18px; min-height: 104px;
+    font: 15px/26px var(--type);
+    background-image: repeating-linear-gradient(to bottom, transparent 0 25px, var(--rule) 25px 26px);
+  }
+
+  .drop { cursor: pointer; max-width: 560px; transition: transform .18s ease, box-shadow .18s ease; }
+  .drop .card-name { font-size: 1.3rem; height: 54px; padding-top: 20px; }
+  .drop .card-body { min-height: 130px; }
+  .drop:hover, .drop.drag { transform: rotate(-0.8deg) translateY(-2px); }
+  .drop.drag { box-shadow: 0 0 0 3px var(--accent), 0 16px 26px -14px rgba(29,39,51,.5); }
+  .drop:focus-within { outline: 3px solid var(--accent); outline-offset: 4px; }
+  .visually-hidden { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+
+  .sheet-row { margin-top: 20px; display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+  .sheet-row label, .setting > label { font-weight: 600; }
+  select, input[type="search"], input[type="url"] {
+    font: inherit; color: var(--ink); background: #fff; width: 100%;
+    padding: 9px 11px; border: 1px solid var(--line); border-radius: 6px;
+  }
+  .sheet-row select { width: auto; min-width: 200px; }
+  select:focus-visible, input:focus-visible, button:focus-visible, a:focus-visible {
+    outline: 3px solid var(--accent); outline-offset: 2px;
+  }
+  .setting { max-width: 520px; }
+  .setting > label { display: block; margin-bottom: 4px; }
+
+  fieldset { border: 0; border-top: 1px solid var(--line); margin: 0 0 12px; padding: 16px 0 12px; }
+  legend { font-weight: 700; padding: 0 12px 0 0; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 16px 28px; margin-top: 8px; }
+  .field label { display: block; font-weight: 600; font-size: .95rem; margin-bottom: 4px; }
+  .sample { font-size: .85rem; color: var(--muted); min-height: 1.35em; margin-top: 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .setting .sample { white-space: normal; }
+
+  .check { display: flex; gap: 10px; align-items: flex-start; margin: 0 0 18px; cursor: pointer; max-width: 64ch; }
+  .check input { accent-color: var(--accent); width: 18px; height: 18px; margin: 3px 0 0; flex: none; }
+
+  .search { max-width: 360px; margin-bottom: 22px; }
+  .list { display: grid; grid-template-columns: repeat(auto-fill, minmax(290px, 1fr)); gap: 26px; }
+  .item.is-done .card-name { border-bottom-color: var(--ok); }
+  .link-body { min-height: 78px; }
+  .link { font-size: 13px; line-height: 26px; overflow-wrap: anywhere; color: var(--muted); }
+  .foot { padding: 12px 0 4px; display: grid; gap: 8px; }
+  .foot-row { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
+  .status { font-size: .88rem; color: var(--muted); min-height: 1.3em; }
+  .is-done .status { color: var(--ok); font-weight: 600; }
+  .open { color: var(--accent); font-weight: 600; }
+
+  .btn, .btn-ghost {
+    border-radius: 6px; padding: 12px 20px; font: 600 1rem var(--sans); cursor: pointer;
+  }
+  .btn { background: var(--accent); color: #fff; border: 1px solid var(--accent); }
+  .btn:hover { background: #193F87; }
+  .btn-ghost { background: transparent; color: var(--accent); border: 1px solid var(--line); }
+  .btn-ghost:hover { border-color: var(--accent); }
+  .btn:disabled, .btn-ghost:disabled { opacity: .45; cursor: not-allowed; }
+  .small { padding: 8px 14px; font-size: .92rem; }
+  .actions { display: flex; gap: 14px; flex-wrap: wrap; align-items: center; margin-bottom: 12px; }
+
+  .error { color: #9B1F25; background: #FBE7E7; border-left: 3px solid #C4323A; padding: 10px 14px; margin: 18px 0 0; max-width: 64ch; }
+
+  @media (max-width: 560px) {
+    main { padding: 40px 16px 80px; }
+    section { margin-top: 48px; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .drop { transition: none; }
+    .drop:hover, .drop.drag { transform: none; }
+  }
+</style>
+</head>
+<body>
+<main>
+  <header>
+    <h1>Excel naar NFC&#8209;links</h1>
+    <p class="intro">Maak van elk contact in je Excelbestand een eigen contactkaart op je website, en zet de link daarnaartoe op een NFC-chip. Wie de chip aantikt met een iPhone of Android-telefoon, ziet de kaart en kan het contact met één tik opslaan.</p>
+  </header>
+
+  <section aria-labelledby="h-step1">
+    <h2 id="h-step1">1. Kies je bestand</h2>
+    <p class="hint">Werkt met .xlsx, .xls, .ods en .csv. Zet elk contact op een eigen rij. Je bestand wordt niet geüpload.</p>
+    <label class="card drop" id="drop" for="file">
+      <span class="card-name" id="dropTitle">Kies je Excelbestand</span>
+      <span class="card-body"><span id="dropText">Tik hier om een bestand te kiezen, of sleep het hierheen op een computer.</span></span>
+      <input type="file" id="file" class="visually-hidden" accept=".xlsx,.xls,.xlsm,.xlsb,.ods,.csv,.txt">
+    </label>
+    <div class="sheet-row" id="sheetRow" hidden>
+      <label for="sheet">Werkblad</label>
+      <select id="sheet"></select>
+    </div>
+    <p class="error" id="error" role="alert" hidden></p>
+  </section>
+
+  <section id="step2" aria-labelledby="h-step2" hidden>
+    <h2 id="h-step2">2. Koppel de kolommen</h2>
+    <p class="hint">Kies bij elk veld de kolom waar die gegevens staan. Kolommen die herkend zijn, staan al ingevuld. Alles wat je koppelt, komt op de contactkaart en is dus zichtbaar voor wie de chip aantikt.</p>
+    <label class="check"><input type="checkbox" id="hasHeader" checked> De eerste rij bevat kolomnamen</label>
+    <label class="check"><input type="checkbox" id="fixPhone" checked> Zet de 0 terug voor telefoonnummers waar Excel die heeft weggehaald (612345678 wordt 0612345678)</label>
+    <div id="map"></div>
+  </section>
+
+  <section id="step3" aria-labelledby="h-step3" hidden>
+    <h2 id="h-step3">3. Vul het adres van je website in</h2>
+    <p class="hint">Dit is het adres van je GitHub Pages-site. Het ziet eruit als <code>https://gebruikersnaam.github.io/visitekaartjes/</code>. Open je deze pagina vanaf die site, dan staat het adres er al.</p>
+    <div class="setting">
+      <label for="base">Websiteadres</label>
+      <input type="url" id="base" inputmode="url" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="https://gebruikersnaam.github.io/visitekaartjes/">
+    </div>
+    <p class="error" id="baseError" hidden>Dit is geen geldig websiteadres. Het moet beginnen met https:// en eindigen op bijvoorbeeld github.io/visitekaartjes/.</p>
+  </section>
+
+  <section id="step4" aria-labelledby="h-step4" hidden>
+    <h2 id="h-step4">4. Zet de contactkaarten online</h2>
+    <p class="hint" id="summary" aria-live="polite"></p>
+    <p class="notice">Met een gratis GitHub-account is je repository openbaar. Iedereen die hem vindt, kan alle contactkaarten bekijken. Zet er daarom alleen gegevens op die de mensen zelf willen delen, en vraag ze vooraf om toestemming.</p>
+    <div class="actions">
+      <button class="btn" id="zip" type="button">Download contactkaarten.zip</button>
+      <span class="status" id="zipStatus" aria-live="polite"></span>
+    </div>
+    <ol class="steps">
+      <li>Pak <code>contactkaarten.zip</code> uit. Je krijgt een map <code>c</code>.</li>
+      <li>Open je repository op github.com en kies ‘Add file’ en dan ‘Upload files’.</li>
+      <li>Sleep de map <code>c</code> erin en kies ‘Commit changes’. De map moet naast dit bestand (<code>index.html</code>) komen te staan.</li>
+      <li>Wacht een minuut en test een link met ‘Openen’ hieronder.</li>
+    </ol>
+
+    <h2 style="margin-top:56px">5. Zet de links op chips</h2>
+    <p class="hint">Op een iPhone gebruik je hiervoor de gratis app NFC Tools. Een link past op elke NFC-chip, ook op de kleine NTAG213.</p>
+    <ol class="steps">
+      <li>Tik bij een contact op ‘Kopieer link’.</li>
+      <li>Open NFC Tools, ga naar ‘Schrijven’ (Write) en kies ‘Record toevoegen’ (Add a record) en dan ‘URL / URI’.</li>
+      <li>Plak de link en tik op OK. Controleer dat het adres niet twee keer met https:// begint.</li>
+      <li>Tik op ‘Schrijven’ (Write) en houd de chip tegen de bovenkant van de achterkant van je iPhone.</li>
+    </ol>
+    <div class="search" id="searchWrap" hidden>
+      <label class="visually-hidden" for="search">Zoek een contact</label>
+      <input type="search" id="search" placeholder="Zoek op naam, bedrijf of e-mail">
+    </div>
+    <div class="list" id="list"></div>
+    <div class="actions" style="margin-top:32px">
+      <button class="btn-ghost" id="csv" type="button">Download de lijst met links (.csv)</button>
+    </div>
+  </section>
+</main>
+
+<script>
+(function () {
+  "use strict";
+  let wb = null, fileBase = "contacten", rows = [], ncols = 0, startCol = 0, mapping = {};
+  const FIELDS = [
+    { key: "firstName", label: "Voornaam", group: "Naam", syn: ["voornaam", "voornamen", "roepnaam", "firstname", "givenname"] },
+    { key: "prefix", label: "Tussenvoegsel", group: "Naam", syn: ["tussenvoegsel", "tussenvoegsels", "=tussenv", "voorvoegsel", "=prefix"] },
+    { key: "lastName", label: "Achternaam", group: "Naam", syn: ["achternaam", "familienaam", "lastname", "surname", "familyname"] },
+    { key: "fullName", label: "Volledige naam", group: "Naam", syn: ["naam", "=name", "volledigenaam", "fullname", "contactpersoon", "=contact", "displayname", "weergavenaam"] },
+    { key: "org", label: "Bedrijf", group: "Werk", syn: ["bedrijf", "bedrijfsnaam", "organisatie", "company", "organization", "organisation", "firma", "werkgever"] },
+    { key: "title", label: "Functie", group: "Werk", syn: ["functie", "functietitel", "jobtitle", "=title", "=rol", "=role", "=position"] },
+    { key: "mobile", label: "Mobiel", group: "Telefoon en e-mail", syn: ["mobiel", "mobielnummer", "mobieltelefoon", "mobieletelefoon", "telefoonmobiel", "=gsm", "mobile", "mobilephone", "cellphone", "=cell", "06nummer"] },
+    { key: "phoneWork", label: "Telefoon werk", group: "Telefoon en e-mail", syn: ["telefoonwerk", "telwerk", "werktelefoon", "telefoonnummerwerk", "telefoonzakelijk", "zakelijktelefoon", "workphone", "businessphone", "=werk", "=zakelijk"] },
+    { key: "phoneHome", label: "Telefoon privé", group: "Telefoon en e-mail", syn: ["telefoonthuis", "telthuis", "telefoonprive", "privetelefoon", "telefoonnummerthuis", "homephone", "=thuis", "=prive"] },
+    { key: "phone", label: "Telefoon overig", group: "Telefoon en e-mail", syn: ["telefoon", "telefoonnummer", "=tel", "=telnr", "phone", "phonenumber", "=nummer"] },
+    { key: "email", label: "E-mail", group: "Telefoon en e-mail", syn: ["email", "emailadres", "mailadres", "emailaddress", "=mail", "emailwerk", "emailprive", "zakelijkemail"] },
+    { key: "email2", label: "E-mail 2", group: "Telefoon en e-mail", syn: ["email2", "emailadres2", "tweedeemail", "mail2"] },
+    { key: "street", label: "Straat", group: "Adres", syn: ["straat", "straatnaam", "adres", "address", "street", "streetaddress", "straatenhuisnummer"] },
+    { key: "houseNumber", label: "Huisnummer", group: "Adres", syn: ["huisnummer", "huisnr", "=nr", "housenumber", "huisnummertoevoeging"] },
+    { key: "postalCode", label: "Postcode", group: "Adres", syn: ["postcode", "zipcode", "=zip", "postalcode", "=pc"] },
+    { key: "city", label: "Plaats", group: "Adres", syn: ["plaats", "woonplaats", "plaatsnaam", "stad", "city", "town"] },
+    { key: "country", label: "Land", group: "Adres", syn: ["land", "country"] },
+    { key: "website", label: "Website", group: "Overig", syn: ["website", "homepage", "=url", "=web", "=site", "=internet"] },
+    { key: "birthday", label: "Geboortedatum", group: "Overig", syn: ["geboortedatum", "verjaardag", "gebdatum", "birthday", "birthdate", "dateofbirth", "=dob"] },
+    { key: "note", label: "Notitie", group: "Overig", syn: ["notitie", "notities", "opmerking", "opmerkingen", "toelichting", "notes", "=note", "=memo"] }
+  ];
+
+
+  const $ = (id) => document.getElementById(id);
+  const el = (tag, cls) => { const e = document.createElement(tag); if (cls) e.className = cls; return e; };
+  const norm = (s) => String(s).toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]/g, "");
+  const enc = new TextEncoder();
+
+  /* ---------- Bestand inlezen ---------- */
+
+  function showError(msg) { $("error").textContent = msg || ""; $("error").hidden = !msg; }
+
+  function handleFile(file) {
+    showError("");
+    if (typeof XLSX === "undefined") {
+      showError("De Excel-lezer kon niet worden geladen. Controleer je internetverbinding en laad de pagina opnieuw.");
+      return;
+    }
+    fileBase = file.name.replace(/\.[^.]+$/, "") || "contacten";
+    const isText = /\.(csv|txt)$/i.test(file.name);
+    const reader = new FileReader();
+    reader.onerror = () => showError("Het bestand kon niet worden gelezen. Probeer het opnieuw.");
+    reader.onload = (e) => {
+      try {
+        const buf = new Uint8Array(e.target.result);
+        if (isText) {
+          let text = new TextDecoder("utf-8").decode(buf);
+          if (text.includes("\uFFFD")) text = new TextDecoder("windows-1252").decode(buf);
+          text = text.replace(/^\uFEFF/, "");
+          wb = XLSX.read(text, { type: "string", raw: true });
+        } else {
+          wb = XLSX.read(buf, { type: "array" });
+        }
+      } catch (err) {
+        showError("Dit bestand kon niet worden geopend. Kies een Excel- of CSV-bestand.");
+        return;
+      }
+      if (!wb.SheetNames.length) { showError("Dit bestand bevat geen werkbladen."); return; }
+      $("dropTitle").textContent = file.name;
+      $("dropText").textContent = "Tik hier om een ander bestand te kiezen.";
+      const sel = $("sheet");
+      sel.innerHTML = "";
+      wb.SheetNames.forEach((n) => { const o = el("option"); o.value = n; o.textContent = n; sel.append(o); });
+      $("sheetRow").hidden = wb.SheetNames.length < 2;
+      loadSheet(wb.SheetNames[0]);
+    };
+    reader.readAsArrayBuffer(file);
+  }
+
+  function loadSheet(name) {
+    const ws = wb.Sheets[name];
+    rows = []; ncols = 0; startCol = 0; written = new Set();
+    if (ws && ws["!ref"]) {
+      startCol = XLSX.utils.decode_range(ws["!ref"]).s.c;
+      const fmt = XLSX.utils.sheet_to_json(ws, { header: 1, raw: false, defval: "", blankrows: true });
+      const raw = XLSX.utils.sheet_to_json(ws, { header: 1, raw: true, defval: "", blankrows: true });
+      fmt.forEach((r, i) => {
+        if (r.some((v) => String(v).trim() !== "")) {
+          rows.push({ f: r, r: raw[i] || [] });
+          ncols = Math.max(ncols, r.length);
+        }
+      });
+    }
+    if (!rows.length) {
+      showError("Het werkblad ‘" + name + "’ is leeg. Kies een ander werkblad of bestand.");
+      $("step2").hidden = true; $("step3").hidden = true;
+      return;
+    }
+    showError("");
+    $("hasHeader").checked = looksLikeHeader(rows[0].f);
+    $("search").value = "";
+    autoMap();
+    renderMap();
+    $("step2").hidden = false; $("step3").hidden = false;
+    render();
+  }
+
+  /* ---------- Kolommen herkennen ---------- */
+
+  const synList = (f) => f.syn.map((s) => ({ exact: s[0] === "=", s: s.replace(/^=/, "") }));
+  const hasHeader = () => $("hasHeader").checked;
+  const dataRows = () => (hasHeader() ? rows.slice(1) : rows);
+
+  function looksLikeHeader(first) {
+    const heads = first.map(norm);
+    if (heads.some((h) => h && FIELDS.some((f) => synList(f).some((x) => x.s === h)))) return true;
+    if (first.some((v) => /@/.test(v) || /^\+?[\d\s-]{7,}$/.test(String(v).trim()))) return false;
+    return true;
+  }
+
+  function autoMap() {
+    mapping = {};
+    FIELDS.forEach((f) => (mapping[f.key] = null));
+    const used = new Set();
+    if (hasHeader()) {
+      const heads = [];
+      for (let i = 0; i < ncols; i++) heads.push(norm(rows[0].f[i] ?? ""));
+      heads.forEach((h, i) => {
+        if (!h) return;
+        const f = FIELDS.find((f) => mapping[f.key] === null && synList(f).some((x) => x.s === h));
+        if (f) { mapping[f.key] = i; used.add(i); }
+      });
+      heads.forEach((h, i) => {
+        if (!h || used.has(i)) return;
+        let best = null, bestLen = 0;
+        FIELDS.forEach((f) => {
+          if (mapping[f.key] !== null) return;
+          synList(f).forEach((x) => {
+            if (!x.exact && x.s.length >= 4 && h.includes(x.s) && x.s.length > bestLen) { best = f; bestLen = x.s.length; }
+          });
+        });
+        if (best) { mapping[best.key] = i; used.add(i); }
+      });
+    }
+    if (mapping.email === null) {
+      for (let i = 0; i < ncols; i++) {
+        if (used.has(i)) continue;
+        const vals = dataRows().map((r) => String(r.f[i] ?? "").trim()).filter(Boolean).slice(0, 50);
+        if (vals.length && vals.filter((v) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v)).length / vals.length > 0.6) {
+          mapping.email = i; used.add(i); break;
+        }
+      }
+    }
+  }
+
+  function colLabel(i) {
+    const letter = XLSX.utils.encode_col(startCol + i);
+    const name = hasHeader() ? String(rows[0].f[i] ?? "").trim() : "";
+    return name ? letter + ": " + name : "Kolom " + letter;
+  }
+
+  function sampleFor(i) {
+    if (i === null) return "";
+    for (const r of dataRows()) {
+      const v = String(r.f[i] ?? "").trim();
+      if (v) return "Bijvoorbeeld: " + v;
+    }
+    return "Deze kolom is leeg";
+  }
+
+  function renderMap() {
+    const box = $("map");
+    box.innerHTML = "";
+    [...new Set(FIELDS.map((f) => f.group))].forEach((g) => {
+      const fs = el("fieldset");
+      const lg = el("legend"); lg.textContent = g; fs.append(lg);
+      const grid = el("div", "grid");
+      FIELDS.filter((f) => f.group === g).forEach((f) => {
+        const wrap = el("div", "field");
+        const lab = el("label"); lab.htmlFor = "f_" + f.key; lab.textContent = f.label;
+        const sel = el("select"); sel.id = "f_" + f.key;
+        const none = el("option"); none.value = ""; none.textContent = "Niet gebruiken"; sel.append(none);
+        for (let i = 0; i < ncols; i++) { const o = el("option"); o.value = String(i); o.textContent = colLabel(i); sel.append(o); }
+        sel.value = mapping[f.key] === null ? "" : String(mapping[f.key]);
+        const smp = el("div", "sample"); smp.textContent = sampleFor(mapping[f.key]);
+        sel.addEventListener("change", () => {
+          mapping[f.key] = sel.value === "" ? null : Number(sel.value);
+          smp.textContent = sampleFor(mapping[f.key]);
+          render();
+        });
+        wrap.append(lab, sel, smp);
+        grid.append(wrap);
+      });
+      fs.append(grid);
+      box.append(fs);
+    });
+  }
+
+  /* ---------- Waarden opschonen ---------- */
+
+  const numToStr = (n) => (Number.isInteger(n) ? n.toFixed(0) : String(n));
+
+  function fixPhone(s) {
+    s = String(s).trim();
+    if (!s || !$("fixPhone").checked) return s;
+    const d = s.replace(/[\s\-().]/g, "");
+    if (/^[1-9]\d{8}$/.test(d)) return "0" + d;
+    if (/^31[1-9]\d{8}$/.test(d)) return "+" + d;
+    return s;
+  }
+
+  const pad = (n) => String(n).padStart(2, "0");
+  function ymd(y, m, d) {
+    if (y < 1850 || y > 2100 || m < 1 || m > 12 || d < 1 || d > 31) return "";
+    return y + "-" + pad(m) + "-" + pad(d);
+  }
+
+  function parseBirthday(raw, txt) {
+    if (typeof raw === "number" && raw > 0) {
+      const p = XLSX.SSF.parse_date_code(raw);
+      return p ? ymd(p.y, p.m, p.d) : "";
+    }
+    const s = String(txt || "").trim();
+    let m;
+    if ((m = s.match(/^(\d{4})[-\/.](\d{1,2})[-\/.](\d{1,2})/))) return ymd(+m[1], +m[2], +m[3]);
+    if ((m = s.match(/^(\d{1,2})[-\/.](\d{1,2})[-\/.](\d{4})$/))) return ymd(+m[3], +m[2], +m[1]);
+    if ((m = s.match(/^(\d{1,2})[-\/.](\d{1,2})[-\/.](\d{2})$/))) {
+      const yy = +m[3], cur = new Date().getFullYear() % 100;
+      return ymd(yy > cur ? 1900 + yy : 2000 + yy, +m[2], +m[1]);
+    }
+    const months = ["jan", "feb", "maa", "apr", "mei", "jun", "jul", "aug", "sep", "okt", "nov", "dec"];
+    if ((m = norm(s).match(/^(\d{1,2})([a-z]+)(\d{4})$/))) {
+      const mi = months.indexOf(m[2].slice(0, 3).replace("mar", "maa").replace("may", "mei").replace("oct", "okt"));
+      if (mi >= 0) return ymd(+m[3], mi + 1, +m[1]);
+    }
+    return "";
+  }
+
+  function buildContact(row, id) {
+    const v = (key) => {
+      const i = mapping[key];
+      return i === null ? "" : String(row.f[i] ?? "").replace(/\u00a0/g, " ").trim();
+    };
+    const phone = (key) => {
+      const i = mapping[key];
+      if (i === null) return "";
+      const r = row.r[i];
+      if (typeof r === "number") {
+        const f = v(key);
+        const s = /^[\d\s+\-()]+$/.test(f) && f.replace(/\D/g, "").length >= numToStr(r).length ? f : numToStr(r);
+        return fixPhone(s);
+      }
+      return fixPhone(v(key));
+    };
+
+    let given = v("firstName");
+    let family = [v("prefix"), v("lastName")].filter(Boolean).join(" ");
+    const full = v("fullName");
+    if (!given && !family && full) {
+      if (full.includes(",")) {
+        const [a, b] = full.split(",").map((s) => s.trim());
+        const parts = b.split(/\s+/);
+        given = parts.shift() || "";
+        family = [parts.join(" "), a].filter(Boolean).join(" ");
+      } else {
+        const parts = full.split(/\s+/);
+        given = parts.shift() || "";
+        family = parts.join(" ");
+      }
+    }
+
+    const org = v("org"), title = v("title");
+    const tels = [["mobile", "CELL", "mobiel"], ["phoneWork", "WORK", "werk"], ["phoneHome", "HOME", "privé"], ["phone", "", ""]]
+      .map(([k, type, label]) => ({ val: phone(k), type, label })).filter((t) => t.val);
+    const emails = [v("email"), v("email2")].filter(Boolean);
+
+    const personName = [given, family].filter(Boolean).join(" ");
+    if (!personName && !full && !org && !tels.length && !emails.length) return null;
+
+    let url = v("website");
+    if (url && !/^[a-z][a-z0-9+.-]*:/i.test(url) && url.includes(".")) url = "https://" + url;
+
+    return {
+      id, fn: full || personName || org || emails[0] || tels[0].val,
+      given, family, org, title, tels, emails,
+      orgOnly: !personName && !full && !!org,
+      street: [v("street"), v("houseNumber")].filter(Boolean).join(" "),
+      postal: v("postalCode"), city: v("city"), country: v("country"),
+      url, bday: parseBirthday(mapping.birthday === null ? undefined : row.r[mapping.birthday], v("birthday")),
+      note: v("note")
+    };
+  }
+
+  /* ---------- vCard maken ---------- */
+
+  const esc = (s) => String(s).replace(/\\/g, "\\\\").replace(/\r\n|\r|\n/g, "\\n").replace(/,/g, "\\,").replace(/;/g, "\\;");
+  const clean = (s) => String(s).replace(/[\r\n]+/g, " ").trim();
+
+  // compact = voor de chip (zo min mogelijk bytes); anders = voor het .vcf-bestand
+  function vcardLines(c, compact) {
+    const L = ["BEGIN:VCARD", "VERSION:3.0"];
+    L.push("N:" + [c.family, c.given, "", "", ""].map(esc).join(";"));
+    L.push("FN:" + esc(c.fn));
+    if (c.org) L.push("ORG:" + esc(c.org));
+    if (c.title) L.push("TITLE:" + esc(c.title));
+    if (c.orgOnly && !compact) L.push("X-ABShowAs:COMPANY");
+    c.tels.forEach((t) => {
+      if (compact) L.push((t.type ? "TEL;TYPE=" + t.type : "TEL") + ":" + clean(t.val));
+      else L.push("TEL;TYPE=" + (t.type === "CELL" ? "CELL" : t.type ? t.type + ",VOICE" : "VOICE") + ":" + clean(t.val));
+    });
+    c.emails.forEach((e) => L.push((compact ? "EMAIL:" : "EMAIL;TYPE=INTERNET:") + clean(e)));
+    if (c.street || c.postal || c.city || c.country) {
+      L.push("ADR;TYPE=" + (c.org ? "WORK" : "HOME") + ":" + ["", "", c.street, c.city, "", c.postal, c.country].map(esc).join(";"));
+    }
+    if (c.url) L.push("URL:" + clean(c.url));
+    if (c.bday) L.push("BDAY:" + c.bday);
+    if (c.note) L.push("NOTE:" + esc(c.note));
+    L.push("END:VCARD");
+    return L;
+  }
+
+  function fold(line) {
+    if (enc.encode(line).length <= 75) return line;
+    const out = [];
+    let cur = "", bytes = 0;
+    for (const ch of line) {
+      const b = enc.encode(ch).length;
+      if (bytes + b > 75) { out.push(cur); cur = " " + ch; bytes = 1 + b; }
+      else { cur += ch; bytes += b; }
+    }
+    out.push(cur);
+    return out.join("\r\n");
+  }
+
+  const chipVcard = (c) => vcardLines(c, true).join("\r\n") + "\r\n";
+  const fileVcard = (c) => vcardLines(c, false).map(fold).join("\r\n") + "\r\n";
+  /* ---------- Websiteadres en links ---------- */
+
+  let contacts = [], written = new Set(), lastIds = new Map();
+  const nfcOK = "NDEFReader" in window;
+
+  // Staat deze pagina zelf op GitHub Pages? Dan vullen we het adres alvast in.
+  (function prefillBase() {
+    if (/\.github\.io$/i.test(location.hostname)) {
+      $("base").value = location.origin + location.pathname.replace(/[^/]*$/, "");
+    }
+  })();
+
+  function baseUrl() {
+    let b = $("base").value.trim();
+    if (!b) return "";
+    if (!/^https?:\/\//i.test(b)) b = "https://" + b;
+    try { const u = new URL(b); if (!u.hostname.includes(".")) return ""; } catch (e) { return ""; }
+    return b.replace(/\/*$/, "/");
+  }
+
+  // Vaste, niet te raden code per contact (zelfde Excel geeft altijd dezelfde links)
+  function cyrb53(str, seed) {
+    let h1 = 0xdeadbeef ^ seed, h2 = 0x41c6ce57 ^ seed;
+    for (let i = 0; i < str.length; i++) {
+      const ch = str.charCodeAt(i);
+      h1 = Math.imul(h1 ^ ch, 2654435761);
+      h2 = Math.imul(h2 ^ ch, 1597334677);
+    }
+    h1 = Math.imul(h1 ^ (h1 >>> 16), 2246822507) ^ Math.imul(h2 ^ (h2 >>> 13), 3266489909);
+    h2 = Math.imul(h2 ^ (h2 >>> 16), 2246822507) ^ Math.imul(h1 ^ (h1 >>> 13), 3266489909);
+    return 4294967296 * (2097151 & h2) + (h1 >>> 0);
+  }
+  function makeId(c, seen) {
+    const key = [c.fn, c.emails[0] || "", c.tels[0] ? c.tels[0].val : "", c.org].join("|").toLowerCase();
+    let id = cyrb53(key, 7).toString(36).padStart(11, "0");
+    let n = 2, base = id;
+    while (seen.has(id)) id = base + "-" + n++;
+    seen.add(id);
+    return id;
+  }
+  const linkFor = (c) => baseUrl() + "c/" + c.slug + ".html";
+
+  /* ---------- Contactpagina (wat iemand ziet na het aantikken) ---------- */
+
+  const h = (s) => String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+
+  function pageHtml(c) {
+    const items = [];
+    const item = (label, value, href) => items.push(
+      '<li><span>' + h(label) + '</span>' + (href ? '<a href="' + h(href) + '">' + h(value) + '</a>' : h(value)) + '</li>'
+    );
+    c.tels.forEach((t) => item(t.label || "telefoon", t.val, "tel:" + t.val.replace(/[^\d+]/g, "")));
+    c.emails.forEach((e) => item("e-mail", e, "mailto:" + e));
+    const adr = [c.street, [c.postal, c.city].filter(Boolean).join(" "), c.country].filter(Boolean);
+    if (adr.length) item("adres", adr.join(", "));
+    if (c.url) item("website", c.url.replace(/^https?:\/\//, ""), c.url);
+    if (c.bday) { const [y, m, d] = c.bday.split("-"); item("geboortedatum", +d + "-" + +m + "-" + y); }
+    if (c.note) item("notitie", c.note);
+    const sub = [c.title, c.orgOnly ? "" : c.org].filter(Boolean).join(", ");
+    return '<!DOCTYPE html>\n<html lang="nl">\n<head>\n<meta charset="utf-8">\n' +
+      '<meta name="viewport" content="width=device-width, initial-scale=1">\n' +
+      '<meta name="robots" content="noindex, nofollow">\n' +
+      '<title>' + h(c.fn) + '</title>\n<style>\n' +
+      'body{margin:0;background:#DCE3E7;color:#1D2733;font:17px/1.5 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;min-height:100vh;display:flex;align-items:center;justify-content:center;padding:24px;box-sizing:border-box}\n' +
+      'main{background:#FFFEFA;width:100%;max-width:420px;border-radius:4px;padding:0 22px 22px;box-shadow:0 1px 1px rgba(29,39,51,.12),0 16px 30px -16px rgba(29,39,51,.5)}\n' +
+      'h1{font:700 1.4rem/1.3 "Courier New",Courier,monospace;margin:0 -22px;padding:26px 22px 10px;border-bottom:2px solid #D9534F}\n' +
+      '.sub{margin:12px 0 0;color:#52617A}\n' +
+      'ul{list-style:none;padding:0;margin:14px 0 24px}\n' +
+      'li{padding:9px 0;border-bottom:1px solid #BCD0E6;overflow-wrap:anywhere}\n' +
+      'li span{display:block;font-size:.8rem;color:#52617A}\n' +
+      'a{color:#1F4FA8}\n' +
+      '.save{display:block;text-align:center;background:#1F4FA8;color:#fff;text-decoration:none;font-weight:600;padding:15px;border-radius:8px}\n' +
+      '.save:focus-visible,a:focus-visible{outline:3px solid #1F4FA8;outline-offset:3px}\n' +
+      '</style>\n</head>\n<body>\n<main>\n<h1>' + h(c.fn) + '</h1>\n' +
+      (sub ? '<p class="sub">' + h(sub) + '</p>\n' : '') +
+      '<ul>\n' + items.join("\n") + '\n</ul>\n' +
+      '<a class="save" href="' + h(c.slug) + '.vcf">Zet in mijn contacten</a>\n</main>\n</body>\n</html>\n';
+  }
+
+  /* ---------- Lijst tonen ---------- */
+
+  function render() {
+    contacts = [];
+    let skipped = 0;
+    const seen = new Set();
+    dataRows().forEach((r, i) => {
+      const c = buildContact(r, i);
+      if (c) { c.slug = makeId(c, seen); contacts.push(c); } else skipped++;
+    });
+    const n = contacts.length;
+    let text;
+    if (!n) {
+      text = "Er zijn nog geen contacten. Koppel minstens een naam, bedrijf, telefoonnummer of e-mailadres aan een kolom.";
+    } else {
+      text = (n === 1 ? "1 contact gevonden." : n + " contacten gevonden.");
+      if (skipped) text += " " + (skipped === 1 ? "1 rij is" : skipped + " rijen zijn") + " overgeslagen omdat er geen naam, bedrijf, telefoonnummer of e-mailadres in stond.";
+    }
+    $("summary").textContent = text;
+    const ok = !!baseUrl();
+    $("zip").disabled = !n || !ok;
+    $("csv").disabled = !n || !ok;
+    $("baseError").hidden = ok || !$("base").value.trim();
+    $("step4").hidden = !n;
+    $("searchWrap").hidden = n <= 8;
+    renderList();
+  }
+
+  function renderList() {
+    const box = $("list");
+    box.innerHTML = "";
+    if (!baseUrl()) {
+      const p = el("p", "hint"); p.textContent = "Vul bij stap 3 eerst het adres van je GitHub Pages-site in. Dan verschijnen hier de links.";
+      box.append(p); return;
+    }
+    const q = norm($("search").value);
+    let shown = 0;
+    contacts.forEach((c) => {
+      if (q && !norm([c.fn, c.org, c.emails.join(" ")].join(" ")).includes(q)) return;
+      shown++;
+      box.append(itemFor(c));
+    });
+    if (!shown && contacts.length) {
+      const p = el("p", "hint"); p.textContent = "Geen contacten gevonden. Probeer een andere zoekterm.";
+      box.append(p);
+    }
+  }
+
+  function itemFor(c) {
+    const url = linkFor(c);
+    const done = written.has(c.slug);
+    const a = el("article", "card item" + (done ? " is-done" : ""));
+    const n = el("div", "card-name"); n.textContent = c.fn; a.append(n);
+    const b = el("div", "card-body link-body");
+    const link = el("div", "link"); link.textContent = url; b.append(link);
+    a.append(b);
+
+    const row = el("div", "foot-row");
+    const copy = el("button", "btn small"); copy.type = "button"; copy.textContent = "Kopieer link";
+    const status = el("span", "status"); status.setAttribute("aria-live", "polite");
+    if (done) status.textContent = "Op chip gezet";
+    copy.addEventListener("click", async () => {
+      const okCopy = await copyText(url);
+      status.textContent = okCopy ? "Gekopieerd" : "Kopiëren lukte niet; houd de link ingedrukt om hem te kopiëren";
+    });
+    const open = el("a", "open"); open.href = url; open.target = "_blank"; open.rel = "noopener"; open.textContent = "Openen";
+    row.append(copy, open);
+    if (nfcOK) {
+      const w = el("button", "btn-ghost small"); w.type = "button"; w.textContent = "Schrijf naar chip";
+      w.addEventListener("click", () => writeUrl(c, url, status, a));
+      row.append(w);
+    }
+    const foot = el("div", "foot");
+    foot.append(row, status);
+    a.append(foot);
+    return a;
+  }
+
+  async function copyText(text) {
+    try { await navigator.clipboard.writeText(text); return true; }
+    catch (e) {
+      const t = el("textarea"); t.value = text; t.setAttribute("readonly", ""); t.style.position = "fixed"; t.style.opacity = "0";
+      document.body.append(t); t.select(); t.setSelectionRange(0, text.length);
+      let ok = false; try { ok = document.execCommand("copy"); } catch (err) { ok = false; }
+      t.remove(); return ok;
+    }
+  }
+
+  // Alleen op Android met Chrome: rechtstreeks vanaf deze pagina schrijven
+  async function writeUrl(c, url, status, card) {
+    status.textContent = "Houd een chip tegen je telefoon…";
+    try {
+      await new NDEFReader().write({ records: [{ recordType: "url", data: url }] });
+      written.add(c.slug);
+      card.classList.add("is-done");
+      status.textContent = "Op chip gezet";
+    } catch (err) {
+      status.textContent = err && err.name === "NotAllowedError" ? "Geen toestemming voor NFC. Sta het toe via het slotje naast het webadres."
+        : err && err.name === "NotReadableError" ? "NFC staat uit. Zet NFC aan in de instellingen."
+        : "Dat lukte niet. Houd de chip stil tegen je telefoon en probeer het opnieuw.";
+    }
+  }
+
+  /* ---------- Downloads ---------- */
+
+  function saveBlob(blob, name) {
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = name;
+    document.body.append(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(a.href), 4000);
+  }
+
+  async function downloadZip() {
+    if (typeof JSZip === "undefined") { $("zipStatus").textContent = "De zip-maker kon niet worden geladen. Controleer je internetverbinding."; return; }
+    const zip = new JSZip();
+    const dir = zip.folder("c");
+    contacts.forEach((c) => {
+      dir.file(c.slug + ".html", pageHtml(c));
+      dir.file(c.slug + ".vcf", fileVcard(c));
+    });
+    $("zipStatus").textContent = "Bezig met inpakken…";
+    const blob = await zip.generateAsync({ type: "blob" });
+    saveBlob(blob, "contactkaarten.zip");
+    $("zipStatus").textContent = "contactkaarten.zip is gedownload met " + contacts.length + (contacts.length === 1 ? " contact." : " contacten.");
+  }
+
+  function downloadCsv() {
+    const q = (s) => '"' + String(s).replace(/"/g, '""') + '"';
+    const lines = ["Naam;Link"].concat(contacts.map((c) => q(c.fn) + ";" + q(linkFor(c))));
+    saveBlob(new Blob(["\uFEFF" + lines.join("\r\n")], { type: "text/csv;charset=utf-8" }), "links-voor-chips.csv");
+  }
+
+  /* ---------- Gebeurtenissen ---------- */
+
+  const drop = $("drop");
+  $("file").addEventListener("change", (e) => { if (e.target.files[0]) handleFile(e.target.files[0]); e.target.value = ""; });
+  ["dragenter", "dragover"].forEach((t) => drop.addEventListener(t, (e) => { e.preventDefault(); drop.classList.add("drag"); }));
+  ["dragleave", "dragend"].forEach((t) => drop.addEventListener(t, () => drop.classList.remove("drag")));
+  drop.addEventListener("drop", (e) => {
+    e.preventDefault();
+    drop.classList.remove("drag");
+    if (e.dataTransfer.files[0]) handleFile(e.dataTransfer.files[0]);
+  });
+  $("sheet").addEventListener("change", (e) => loadSheet(e.target.value));
+  $("hasHeader").addEventListener("change", () => { autoMap(); renderMap(); render(); });
+  $("fixPhone").addEventListener("change", render);
+  $("base").addEventListener("input", render);
+  $("search").addEventListener("input", renderList);
+  $("zip").addEventListener("click", downloadZip);
+  $("csv").addEventListener("click", downloadCsv);
+
+})();
+</script>
+</body>
+</html>
