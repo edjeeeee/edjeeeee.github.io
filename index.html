@@ -58,7 +58,7 @@
 
   .sheet-row { margin-top: 20px; display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
   .sheet-row label, .setting > label { font-weight: 600; }
-  select, input[type="search"], input[type="url"] {
+  select, input[type="search"], input[type="url"], input[type="text"] {
     font: inherit; color: var(--ink); background: #fff; width: 100%;
     padding: 9px 11px; border: 1px solid var(--line); border-radius: 6px;
   }
@@ -101,6 +101,20 @@
   .small { padding: 8px 14px; font-size: .92rem; }
   .actions { display: flex; gap: 14px; flex-wrap: wrap; align-items: center; margin-bottom: 12px; }
 
+  .style-grid { display: grid; grid-template-columns: minmax(0, 1fr) 340px; gap: 36px; align-items: start; }
+  .controls .setting { margin-bottom: 20px; }
+  .color-row { display: flex; gap: 24px; flex-wrap: wrap; }
+  .color-field { display: flex; gap: 8px; align-items: center; }
+  .color-field input[type="color"] { width: 48px; height: 42px; padding: 3px; border: 1px solid var(--line); border-radius: 6px; background: #fff; cursor: pointer; }
+  .color-field input[type="text"] { width: 112px; font-family: var(--type); }
+  input[type="file"] { font: inherit; max-width: 100%; }
+  .preview { position: sticky; top: 20px; }
+  .preview iframe { display: block; width: 100%; height: 640px; border: 0; border-radius: 18px; background: #fff; box-shadow: 0 0 0 8px var(--ink), 0 20px 40px -18px rgba(29,39,51,.6); }
+  .preview .sample { text-align: center; margin-top: 16px; }
+  @media (max-width: 760px) {
+    .style-grid { grid-template-columns: 1fr; }
+    .preview { position: static; max-width: 360px; }
+  }
   .error { color: #9B1F25; background: #FBE7E7; border-left: 3px solid #C4323A; padding: 10px 14px; margin: 18px 0 0; max-width: 64ch; }
 
   @media (max-width: 560px) {
@@ -145,7 +159,7 @@
 
   <section id="step3" aria-labelledby="h-step3" hidden>
     <h2 id="h-step3">3. Vul het adres van je website in</h2>
-    <p class="hint">Dit is het adres van je GitHub Pages-site. Het ziet eruit als <code>https://gebruikersnaam.github.io/visitekaartjes/</code>. Open je deze pagina vanaf die site, dan staat het adres er al.</p>
+    <p class="hint">Dit is het adres van je GitHub Pages-site. Het ziet eruit als <code>https://gebruikersnaam.github.io/visitekaartjes/</code>. Gebruik je een eigen domeinnaam, vul die dan hier in. Open je deze pagina vanaf je eigen site, dan staat het adres er al.</p>
     <div class="setting">
       <label for="base">Websiteadres</label>
       <input type="url" id="base" inputmode="url" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="https://gebruikersnaam.github.io/visitekaartjes/">
@@ -153,8 +167,66 @@
     <p class="error" id="baseError" hidden>Dit is geen geldig websiteadres. Het moet beginnen met https:// en eindigen op bijvoorbeeld github.io/visitekaartjes/.</p>
   </section>
 
+  <section id="stepStyle" aria-labelledby="h-style" hidden>
+    <h2 id="h-style">4. Kies de opmaak</h2>
+    <p class="hint">Zo ziet iemand de kaart na het aantikken van de chip. Het voorbeeld past zich meteen aan. Welke gegevens erop staan, bepaal je bij stap 2.</p>
+    <div class="style-grid">
+      <div class="controls">
+        <div class="setting">
+          <label for="sPreset">Stijl</label>
+          <select id="sPreset">
+            <option value="kaart">Systeemkaart</option>
+            <option value="strak">Strak en wit</option>
+            <option value="donker">Donker</option>
+          </select>
+        </div>
+        <div class="color-row">
+          <div class="setting">
+            <label for="sAccentHex">Hoofdkleur</label>
+            <div class="color-field">
+              <input type="color" id="sAccent" value="#1f4fa8" aria-label="Kies hoofdkleur">
+              <input type="text" id="sAccentHex" value="#1F4FA8" maxlength="7" autocapitalize="off" spellcheck="false">
+            </div>
+            <div class="sample">Voor de knop, links en lijnen</div>
+          </div>
+          <div class="setting">
+            <label for="sBgHex">Achtergrond</label>
+            <div class="color-field">
+              <input type="color" id="sBg" value="#dce3e7" aria-label="Kies achtergrondkleur">
+              <input type="text" id="sBgHex" value="#DCE3E7" maxlength="7" autocapitalize="off" spellcheck="false">
+            </div>
+            <div class="sample">Rondom de kaart</div>
+          </div>
+        </div>
+        <div class="setting">
+          <label for="sFont">Lettertype</label>
+          <select id="sFont">
+            <option value="auto">Standaard van de stijl</option>
+            <option value="modern">Modern</option>
+            <option value="klassiek">Klassiek</option>
+            <option value="typemachine">Typemachine</option>
+          </select>
+        </div>
+        <div class="setting">
+          <label for="sButton">Tekst op de knop</label>
+          <input type="text" id="sButton" value="Zet in mijn contacten" maxlength="40">
+        </div>
+        <div class="setting">
+          <label for="sLogo">Logo</label>
+          <input type="file" id="sLogo" accept="image/png,image/jpeg,image/svg+xml,image/webp">
+          <div class="sample" id="logoInfo">PNG, JPG of SVG. Komt bovenaan elke kaart.</div>
+          <button class="btn-ghost small" id="sLogoRemove" type="button" hidden>Logo verwijderen</button>
+        </div>
+      </div>
+      <div class="preview">
+        <iframe id="preview" title="Voorbeeld van de contactkaart" sandbox=""></iframe>
+        <div class="sample" id="previewName"></div>
+      </div>
+    </div>
+  </section>
+
   <section id="step4" aria-labelledby="h-step4" hidden>
-    <h2 id="h-step4">4. Zet de contactkaarten online</h2>
+    <h2 id="h-step4">5. Zet de contactkaarten online</h2>
     <p class="hint" id="summary" aria-live="polite"></p>
     <p class="notice">Met een gratis GitHub-account is je repository openbaar. Iedereen die hem vindt, kan alle contactkaarten bekijken. Zet er daarom alleen gegevens op die de mensen zelf willen delen, en vraag ze vooraf om toestemming.</p>
     <div class="actions">
@@ -162,13 +234,13 @@
       <span class="status" id="zipStatus" aria-live="polite"></span>
     </div>
     <ol class="steps">
-      <li>Pak <code>contactkaarten.zip</code> uit. Je krijgt een map <code>c</code>.</li>
+      <li>Pak <code>contactkaarten.zip</code> uit. Je krijgt een map <code>c</code> met alle kaarten (en je logo, als je dat hebt gekozen).</li>
       <li>Open je repository op github.com en kies ‘Add file’ en dan ‘Upload files’.</li>
       <li>Sleep de map <code>c</code> erin en kies ‘Commit changes’. De map moet naast dit bestand (<code>index.html</code>) komen te staan.</li>
       <li>Wacht een minuut en test een link met ‘Openen’ hieronder.</li>
     </ol>
 
-    <h2 style="margin-top:56px">5. Zet de links op chips</h2>
+    <h2 style="margin-top:56px">6. Zet de links op chips</h2>
     <p class="hint">Op een iPhone gebruik je hiervoor de gratis app NFC Tools. Een link past op elke NFC-chip, ook op de kleine NTAG213.</p>
     <ol class="steps">
       <li>Tik bij een contact op ‘Kopieer link’.</li>
@@ -455,8 +527,9 @@
 
     const org = v("org"), title = v("title");
     const tels = [["mobile", "CELL", "mobiel"], ["phoneWork", "WORK", "werk"], ["phoneHome", "HOME", "privé"], ["phone", "", ""]]
-      .map(([k, type, label]) => ({ val: phone(k), type, label })).filter((t) => t.val);
-    const emails = [v("email"), v("email2")].filter(Boolean);
+      .map(([k, type, label]) => ({ val: phone(k), type, label }))
+      .filter((t) => t.val.replace(/\D/g, "").length >= 6); // "-", "n.v.t." of "onbekend" telt niet als nummer
+    const emails = [v("email"), v("email2")].filter((e) => /\S+@\S+\.\S+/.test(e));
 
     const personName = [given, family].filter(Boolean).join(" ");
     if (!personName && !full && !org && !tels.length && !emails.length) return null;
@@ -523,9 +596,9 @@
   let contacts = [], written = new Set(), lastIds = new Map();
   const nfcOK = "NDEFReader" in window;
 
-  // Staat deze pagina zelf op GitHub Pages? Dan vullen we het adres alvast in.
+  // Staat deze pagina online (GitHub Pages of een eigen domein)? Dan vullen we het adres alvast in.
   (function prefillBase() {
-    if (/\.github\.io$/i.test(location.hostname)) {
+    if (/^https?:$/.test(location.protocol) && location.hostname.includes(".")) {
       $("base").value = location.origin + location.pathname.replace(/[^/]*$/, "");
     }
   })();
@@ -564,7 +637,57 @@
 
   const h = (s) => String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 
-  function pageHtml(c) {
+  const STYLE = { preset: "kaart", accent: "#1F4FA8", bg: "#DCE3E7", font: "auto", button: "Zet in mijn contacten", logo: null };
+
+  const FONTS = {
+    modern: 'system-ui,-apple-system,"Segoe UI",Roboto,sans-serif',
+    klassiek: 'Georgia,"Times New Roman",serif',
+    typemachine: '"Courier New",Courier,monospace'
+  };
+  const PRESETS = {
+    kaart: { card: "#FFFEFA", ink: "#1D2733", muted: "#52617A", line: "#BCD0E6", radius: "4px", btnRadius: "8px", name: FONTS.typemachine, body: FONTS.modern },
+    strak: { card: "#FFFFFF", ink: "#14181F", muted: "#5B6573", line: "#E6E9EE", radius: "18px", btnRadius: "999px", name: FONTS.modern, body: FONTS.modern },
+    donker: { card: "#161B22", ink: "#F2F4F7", muted: "#9AA4B2", line: "#2A323D", radius: "14px", btnRadius: "10px", name: FONTS.modern, body: FONTS.modern }
+  };
+
+  // Contrast berekenen, zodat tekst op elke gekozen kleur leesbaar blijft
+  function lum(hex) {
+    const n = parseInt(hex.slice(1), 16);
+    const c = [(n >> 16) & 255, (n >> 8) & 255, n & 255].map((v) => { v /= 255; return v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4); });
+    return 0.2126 * c[0] + 0.7152 * c[1] + 0.0722 * c[2];
+  }
+  function contrast(a, b) { const x = lum(a), y = lum(b); return (Math.max(x, y) + 0.05) / (Math.min(x, y) + 0.05); }
+  const onColor = (hex) => (contrast(hex, "#FFFFFF") >= contrast(hex, "#1D2733") ? "#FFFFFF" : "#1D2733");
+
+  function cardCss() {
+    const P = PRESETS[STYLE.preset];
+    const nameFont = STYLE.font === "auto" ? P.name : FONTS[STYLE.font];
+    const bodyFont = STYLE.font === "auto" ? P.body : FONTS[STYLE.font];
+    const A = STYLE.accent;
+    const link = contrast(A, P.card) >= 3 ? A : P.ink;
+    const rule = contrast(A, P.card) >= 1.6 ? A : P.ink;
+    let css =
+      "body{margin:0;background:" + STYLE.bg + ";color:" + P.ink + ";font:17px/1.5 " + bodyFont + ";min-height:100vh;display:flex;align-items:center;justify-content:center;padding:24px;box-sizing:border-box}\n" +
+      "main{background:" + P.card + ";width:100%;max-width:420px;border-radius:" + P.radius + ";padding:26px 22px 22px;box-shadow:0 1px 1px rgba(0,0,0,.08),0 16px 32px -16px rgba(0,0,0,.45)}\n" +
+      ".logo{display:block;max-height:56px;max-width:60%;margin:0 0 18px}\n" +
+      "h1{font:700 1.45rem/1.25 " + nameFont + ";margin:0}\n" +
+      ".sub{margin:6px 0 0;color:" + P.muted + "}\n" +
+      "ul{list-style:none;padding:0;margin:18px 0 24px}\n" +
+      "li{padding:9px 0;border-bottom:1px solid " + P.line + ";overflow-wrap:anywhere}\n" +
+      "li span{display:block;font-size:.8rem;color:" + P.muted + "}\n" +
+      "a{color:" + link + "}\n" +
+      ".save{display:block;text-align:center;background:" + A + ";color:" + onColor(A) + ";text-decoration:none;font-weight:600;padding:15px;border-radius:" + P.btnRadius + "}\n" +
+      "a:focus-visible{outline:3px solid " + link + ";outline-offset:3px}\n";
+    if (STYLE.preset === "kaart") {
+      css += "main{padding-top:0}.logo{margin:22px 0 0}h1{margin:0 -22px;padding:24px 22px 10px;border-bottom:2px solid " + rule + "}.logo+h1{padding-top:12px}.sub{margin-top:12px}\n";
+    } else if (STYLE.preset === "strak") {
+      css += "main{position:relative;overflow:hidden;padding-top:34px}main::before{content:\"\";position:absolute;left:0;right:0;top:0;height:8px;background:" + A + "}h1{font-size:1.8rem;letter-spacing:-.01em}ul{margin-top:22px}\n";
+    }
+    return css;
+  }
+
+  // preview = true: logo als data-URL in het voorbeeld; anders verwijzing naar logo-bestand in de map c
+  function pageHtml(c, preview) {
     const items = [];
     const item = (label, value, href) => items.push(
       '<li><span>' + h(label) + '</span>' + (href ? '<a href="' + h(href) + '">' + h(value) + '</a>' : h(value)) + '</li>'
@@ -577,25 +700,72 @@
     if (c.bday) { const [y, m, d] = c.bday.split("-"); item("geboortedatum", +d + "-" + +m + "-" + y); }
     if (c.note) item("notitie", c.note);
     const sub = [c.title, c.orgOnly ? "" : c.org].filter(Boolean).join(", ");
+    const logo = STYLE.logo ? '<img class="logo" src="' + h(preview ? STYLE.logo.dataUrl : "logo." + STYLE.logo.ext) + '" alt="' + h(c.org || "Logo") + '">\n' : "";
     return '<!DOCTYPE html>\n<html lang="nl">\n<head>\n<meta charset="utf-8">\n' +
       '<meta name="viewport" content="width=device-width, initial-scale=1">\n' +
       '<meta name="robots" content="noindex, nofollow">\n' +
-      '<title>' + h(c.fn) + '</title>\n<style>\n' +
-      'body{margin:0;background:#DCE3E7;color:#1D2733;font:17px/1.5 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;min-height:100vh;display:flex;align-items:center;justify-content:center;padding:24px;box-sizing:border-box}\n' +
-      'main{background:#FFFEFA;width:100%;max-width:420px;border-radius:4px;padding:0 22px 22px;box-shadow:0 1px 1px rgba(29,39,51,.12),0 16px 30px -16px rgba(29,39,51,.5)}\n' +
-      'h1{font:700 1.4rem/1.3 "Courier New",Courier,monospace;margin:0 -22px;padding:26px 22px 10px;border-bottom:2px solid #D9534F}\n' +
-      '.sub{margin:12px 0 0;color:#52617A}\n' +
-      'ul{list-style:none;padding:0;margin:14px 0 24px}\n' +
-      'li{padding:9px 0;border-bottom:1px solid #BCD0E6;overflow-wrap:anywhere}\n' +
-      'li span{display:block;font-size:.8rem;color:#52617A}\n' +
-      'a{color:#1F4FA8}\n' +
-      '.save{display:block;text-align:center;background:#1F4FA8;color:#fff;text-decoration:none;font-weight:600;padding:15px;border-radius:8px}\n' +
-      '.save:focus-visible,a:focus-visible{outline:3px solid #1F4FA8;outline-offset:3px}\n' +
-      '</style>\n</head>\n<body>\n<main>\n<h1>' + h(c.fn) + '</h1>\n' +
+      '<meta name="theme-color" content="' + STYLE.bg + '">\n' +
+      '<title>' + h(c.fn) + '</title>\n<style>\n' + cardCss() + '</style>\n</head>\n<body>\n<main>\n' + logo +
+      '<h1>' + h(c.fn) + '</h1>\n' +
       (sub ? '<p class="sub">' + h(sub) + '</p>\n' : '') +
       '<ul>\n' + items.join("\n") + '\n</ul>\n' +
-      '<a class="save" href="' + h(c.slug) + '.vcf">Zet in mijn contacten</a>\n</main>\n</body>\n</html>\n';
+      '<a class="save" href="' + h(c.slug) + '.vcf">' + h(STYLE.button.trim() || "Zet in mijn contacten") + '</a>\n</main>\n</body>\n</html>\n';
   }
+
+  /* ---------- Opmaak kiezen ---------- */
+
+  function sampleContact() {
+    let best = contacts[0], score = -1;
+    contacts.slice(0, 30).forEach((c) => {
+      const sc = c.tels.length + c.emails.length + (c.org ? 1 : 0) + (c.title ? 1 : 0) + (c.street ? 1 : 0);
+      if (sc > score) { score = sc; best = c; }
+    });
+    return best;
+  }
+
+  function updatePreview() {
+    const c = sampleContact();
+    if (!c) return;
+    $("preview").srcdoc = pageHtml(c, true);
+    $("previewName").textContent = "Voorbeeld met de gegevens van " + c.fn;
+  }
+
+  const HEX = /^#?[0-9a-f]{6}$/i;
+  function bindColor(pickId, hexId, key) {
+    const pick = $(pickId), hex = $(hexId);
+    pick.addEventListener("input", () => { STYLE[key] = pick.value.toUpperCase(); hex.value = STYLE[key]; updatePreview(); });
+    hex.addEventListener("input", () => {
+      const v = hex.value.trim();
+      if (HEX.test(v)) { STYLE[key] = ("#" + v.replace("#", "")).toUpperCase(); pick.value = STYLE[key].toLowerCase(); updatePreview(); }
+    });
+    hex.addEventListener("blur", () => { hex.value = STYLE[key]; });
+  }
+  bindColor("sAccent", "sAccentHex", "accent");
+  bindColor("sBg", "sBgHex", "bg");
+  $("sPreset").addEventListener("change", (e) => { STYLE.preset = e.target.value; updatePreview(); });
+  $("sFont").addEventListener("change", (e) => { STYLE.font = e.target.value; updatePreview(); });
+  $("sButton").addEventListener("input", (e) => { STYLE.button = e.target.value; updatePreview(); });
+
+  $("sLogo").addEventListener("change", (e) => {
+    const f = e.target.files[0];
+    if (!f) return;
+    const ext = { "image/png": "png", "image/jpeg": "jpg", "image/svg+xml": "svg", "image/webp": "webp" }[f.type];
+    if (!ext) { $("logoInfo").textContent = "Kies een PNG-, JPG-, SVG- of WebP-bestand."; return; }
+    const r = new FileReader();
+    r.onload = () => {
+      STYLE.logo = { dataUrl: r.result, ext, b64: String(r.result).split(",")[1] };
+      $("logoInfo").textContent = f.size > 500000 ? "Logo toegevoegd. Het bestand is vrij groot; een kleiner logo laadt sneller." : "Logo toegevoegd.";
+      $("sLogoRemove").hidden = false;
+      updatePreview();
+    };
+    r.readAsDataURL(f);
+  });
+  $("sLogoRemove").addEventListener("click", () => {
+    STYLE.logo = null; $("sLogo").value = "";
+    $("logoInfo").textContent = "PNG, JPG of SVG. Komt bovenaan elke kaart.";
+    $("sLogoRemove").hidden = true;
+    updatePreview();
+  });
 
   /* ---------- Lijst tonen ---------- */
 
@@ -621,6 +791,8 @@
     $("csv").disabled = !n || !ok;
     $("baseError").hidden = ok || !$("base").value.trim();
     $("step4").hidden = !n;
+    $("stepStyle").hidden = !n;
+    updatePreview();
     $("searchWrap").hidden = n <= 8;
     renderList();
   }
@@ -717,9 +889,10 @@
     const zip = new JSZip();
     const dir = zip.folder("c");
     contacts.forEach((c) => {
-      dir.file(c.slug + ".html", pageHtml(c));
+      dir.file(c.slug + ".html", pageHtml(c, false));
       dir.file(c.slug + ".vcf", fileVcard(c));
     });
+    if (STYLE.logo) dir.file("logo." + STYLE.logo.ext, STYLE.logo.b64, { base64: true });
     $("zipStatus").textContent = "Bezig met inpakken…";
     const blob = await zip.generateAsync({ type: "blob" });
     saveBlob(blob, "contactkaarten.zip");
